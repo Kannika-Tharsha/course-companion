@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Course Companion · Gen AI Internship Project</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef3f1;--ink:#12302b;--mut:#587069;--card:#fff;--line:#c9d8d3;--acc:#0f766e;--hi:#ffe27a;--grid:#dbe7e3}
+@media (prefers-color-scheme:dark){:root{--bg:#0e1b19;--ink:#e3f0ec;--mut:#8fa9a2;--card:#152724;--line:#27403b;--acc:#3ccfbf;--hi:#6b5b12;--grid:#162624}}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.55 "IBM Plex Sans",system-ui,sans-serif;color:var(--ink);background:var(--bg);
+background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:28px 28px}
+.wrap{max-width:1040px;margin:0 auto;padding:28px 16px 48px}
+h1{font-size:clamp(1.8rem,4vw,2.6rem);line-height:1.1;margin:0 0 6px}
+.sub{color:var(--mut);margin:0 0 22px;max-width:60ch}
+.grid{display:grid;grid-template-columns:1fr 300px;gap:16px}
+@media(max-width:820px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}
+#log{height:380px;overflow:auto;display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
+.m{padding:10px 12px;border-radius:8px;max-width:88%;white-space:pre-wrap}
+.u{align-self:flex-end;background:var(--acc);color:#fff}
+.a{align-self:flex-start;background:var(--bg);border:1px solid var(--line)}
+.src{font-size:.85rem;color:var(--mut);margin-top:6px}
+.src mark{background:var(--hi);color:inherit;padding:0 4px;border-radius:3px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+input[type=text],select{flex:1;min-width:140px;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit}
+button{padding:10px 16px;border:0;border-radius:8px;background:var(--acc);color:#fff;font:inherit;font-weight:700;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--hi);outline-offset:2px}
+label{display:block;font-size:.9rem;font-weight:500;margin:12px 0 4px}
+.meter{height:10px;background:var(--bg);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--acc);width:0}
+small,.note{color:var(--mut);font-size:.85rem}
+details{margin-top:12px} summary{cursor:pointer;font-weight:500}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Course Companion</h1>
+  <p class="sub">Ask anything from the 4-week Gen AI internship. Answers come from the course notes (RAG), shaped by the prompting technique you pick.</p>
+  <div class="grid">
+    <section class="card" aria-label="Chat">
+      <div id="log" aria-live="polite"><div class="m a">Hi! Try: “What is RAG?”, “Explain LoRA vs QLoRA”, or “What are the three types of bias?”</div></div>
+      <div class="row">
+        <input id="q" type="text" placeholder="Ask about tokens, RAG, LoRA, bias…" aria-label="Your question">
+        <button id="send">Ask</button>
+      </div>
+      <small>Starter questions: <a href="#" data-q="How does a vector database search work?">vector search</a> · <a href="#" data-q="When should I use fine-tuning instead of RAG?">fine-tuning vs RAG</a> · <a href="#" data-q="What is chain of thought prompting?">chain of thought</a></small>
+    </section>
+    <aside class="card" aria-label="Settings">
+      <label for="tech">Prompting technique (Week 2)</label>
+      <select id="tech">
+        <option value="plain">Plain question</option>
+        <option value="role">Role prompting</option>
+        <option value="fewshot">Few-shot</option>
+        <option value="cot">Chain of thought</option>
+        <option value="craft">CRAFT framework</option>
+      </select>
+      <label for="temp">Temperature: <span id="tv">0.3</span></label>
+      <input id="temp" type="range" min="0" max="1" step="0.1" value="0.3" style="width:100%">
+      <label>Token budget used</label>
+      <div class="meter"><i id="bar"></i></div>
+      <small id="tk">0 / 1500 tokens (estimate)</small>
+      <details><summary>Prompt sent to the model</summary><pre id="pv" class="note" style="white-space:pre-wrap">Ask a question to preview.</pre></details>
+      <details><summary>Retrieved notes</summary><div id="rv" class="note">None yet.</div></details>
+    </aside>
+  </div>
+  <p class="note" style="margin-top:18px">Responsible AI (Week 1 &amp; 4): answers may be wrong. Check the cited week in your notes. Chats are not stored.</p>
+</div>
+<script>
+/* ---------- Knowledge base: summaries of the 4 weeks (Week 2: chunking) ---------- */
+const KB=[
+["Week 1","What is AI","AI is a tool with autonomy (acts independently) and adaptivity (learns from experience). Machine learning has four parts: model, data, training and trained model. AI finds patterns in data using math; human learning is based on curiosity and meaning."],
+["Week 1","Responsible AI","Responsible AI means finding and reducing data bias, protecting data privacy, and remembering humans are responsible for what AI tools do. AI is only as good as its training data. The black box problem is the difficulty of explaining why complex models decide as they do."],
+["Week 1","Data types and ML paradigms","Structured data has rows and columns; unstructured data is images, audio and text. Supervised learning uses labeled data for regression (continuous values) or classification (categories). Unsupervised learning uses unlabeled data for clustering or anomaly detection. Also semi-supervised, self-supervised and reinforcement learning."],
+["Week 1","Tokens and embeddings","LLMs split text into tokens (for example with Byte Pair Encoding), each with a numeric token ID. Embeddings are high-dimensional vectors that capture meaning, so cat and dog are close together."],
+["Week 1","Transformers and context window","Transformers use self-attention to look at all words at once, unlike sequential RNNs. The context window is the maximum tokens a model handles at once, including system prompt, chat history and retrieved documents. Going over the limit causes truncation. Inference: tokenize, embed, run transformer layers, sample the next token. Reasoning models use chain of thought."],
+["Week 1","Customizing models","Three ways to customize an LLM for a business task: prompting, RAG (retrieval-augmented generation) and fine-tuning."],
+["Week 1","AI ethics and policy","Ethical frameworks include consequentialist, deontological, virtue and contract-based ethics. AI alignment means making systems follow human intent and values. Risks include bias, disinformation, deepfakes and job displacement. The US, EU and China regulate AI differently."],
+["Week 2","Prompting techniques","Zero-shot gives no examples; few-shot gives input-output examples. Role prompting assigns a persona. Chain of thought asks for step-by-step reasoning. Least-to-most splits a big task into sub-problems. Self-consistency samples several reasoning paths and takes the most common answer to reduce hallucinations. Prompt chaining feeds one output into the next prompt. Step-back prompting asks for general principles first. ReAct combines reasoning with tools such as search."],
+["Week 2","Prompt frameworks","CRAFT stands for Context, Role, Action, Format, Tone. TCRI stands for Task, Context, References, Evaluate, Iterate. Tree of Thought and Graph of Thought explore and merge reasoning branches. Prompt scaffolding wraps user input in a defensive template to resist prompt injection."],
+["Week 2","Sampling settings","LLMs predict the next token. Output length caps tokens but does not make answers shorter. Temperature, top K and top P control randomness: low temperature gives consistent factual answers, high gives creative ones. Best practices: start simple, be specific about format such as JSON, and use AI to help draft prompts."],
+["Week 2","Embeddings and vector databases","Embeddings turn text or images into vectors so similar meanings are close, for example King minus Man plus Woman is near Queen. Vector databases do fast similarity search using cosine similarity (text) or Euclidean distance (images). They use HNSW, an approximate nearest neighbor method with layered graphs like highways over streets. Never mix embeddings from different models. Use relational databases for exact SQL queries; pgvector on Postgres is a good start, with Pinecone, Weaviate or Qdrant for scale."],
+["Week 2","RAG","LLMs lack private or real-time data. RAG retrieves context from external sources before generating: chunk documents, embed them, store in a vector database such as ChromaDB, run semantic search for the question, add the results to the prompt, then generate a cited answer. The course demo used a Hugging Face embedding model and a Flask web server."],
+["Week 3","LangChain and agents","LangChain was taught from basics: messages, prompt templates, structured output with Pydantic and TypedDict, linear, parallel and conditional chains, ReAct agents with streaming, and an SQL agent that turns natural language into database queries."],
+["Week 3","Slack research agent and Custom GPTs","A Slack agent built with Node.js, GPT-4, LangChain and Slack Bolt researches new members, scores their fit and posts to a channel, with PostgreSQL on Render. Custom GPTs can be built with the Create tab or the Configure tab (instructions plus uploaded knowledge files, which do not auto-sync). Capabilities include web search, DALL-E and code interpreter."],
+["Week 3","Image generation","GANs pair a generator with a discriminator. Diffusion models add noise to images then learn to denoise them, and are the current state of the art. Language models map prompts into a latent space. DALL-E 3 expands prompts, Midjourney learns from feedback, Stable Diffusion is open source and can run locally. Limits: counting people, matching colors, character consistency. Legal status of training data is still unclear."],
+["Week 4","Fine-tuning","Fine-tuning adapts a pre-trained model to a task, tone or domain. RAG is cheaper for adding private knowledge; fine-tuning is better for tone, empathy and format. Foundation models autocomplete; instruct models are conversational. Full fine-tuning updates every parameter and is costly. PEFT methods such as LoRA (small low-rank matrices) and QLoRA (4-bit quantized base model, runs on a consumer GPU) update few parameters. DoRA splits weight magnitude and direction. Alignment methods: RLHF, DPO and GRPO."],
+["Week 4","Bias, governance and drift","There are three types of bias: data bias, algorithmic bias and interpretation bias, where humans misjudge AI output, which is the hardest to manage. Agentic AI needs guardrails and the ability to roll back. Model drift needs monitoring and retraining. Tools: SageMaker Clarify for bias detection, SHAP and LIME for explainability."],
+["Week 4","Building a chatbot with token control","A terminal chatbot using the OpenAI API keeps the API key in a .env file listed in .gitignore, never in code. requirements.txt lists openai, tiktoken and python-dotenv. A fixed system prompt gives the bot its job. tiktoken counts tokens; when the budget is exceeded the oldest message is removed but the system prompt at index 0 stays. Use a virtual environment for dependencies."]
+];
+/* ---------- Retrieval: TF-IDF + cosine similarity (a lightweight stand-in for embeddings + vector DB) ---------- */
+const stop=new Set("a an the is are of to in and or for on with what how do does i it me my you be as at by from this that when should vs".split(" "));
+const tok=s=>s.toLowerCase().replace(/[^a-z0-9 ]/g," ").split(/\s+/).filter(w=>w&&!stop.has(w));
+const docs=KB.map(([w,t,x])=>tok(t+" "+t+" "+x));
+const df={};docs.forEach(d=>new Set(d).forEach(w=>df[w]=(df[w]||0)+1));
+const idf=w=>Math.log(1+docs.length/(1+(df[w]||0)));
+const vec=ws=>{const v={};ws.forEach(w=>v[w]=(v[w]||0)+idf(w));return v};
+const dv=docs.map(vec);
+const cos=(a,b)=>{let d=0,na=0,nb=0;for(const k in a){na+=a[k]**2;if(b[k])d+=a[k]*b[k]}for(const k in b)nb+=b[k]**2;return na&&nb?d/Math.sqrt(na*nb):0};
+function retrieve(q,k=3){const qv=vec(tok(q));return dv.map((v,i)=>({i,s:cos(qv,v)})).filter(r=>r.s>0.04).sort((a,b)=>b.s-a.s).slice(0,k)}
+/* ---------- Prompt techniques (Week 2) ---------- */
+const T={
+plain:q=>q,
+role:q=>`You are a patient AI instructor teaching beginners.\nQuestion: ${q}`,
+fewshot:q=>`Answer in two short sentences, like these examples.\nQ: What is a token? A: A token is a small piece of text a model reads. Models turn each one into a number.\nQ: What is temperature? A: It controls randomness. Low is focused, high is creative.\nQ: ${q} A:`,
+cot:q=>`${q}\nThink step by step, then give a short final answer.`,
+craft:q=>`Context: A beginner is revising a Gen AI course.\nRole: Friendly tutor.\nAction: Answer this question: ${q}\nFormat: 3 bullet points.\nTone: Simple and encouraging.`
+};
+/* ---------- Token budget (Week 4): estimate ~4 chars per token, drop oldest messages, keep the system prompt ---------- */
+const BUDGET=1500, est=s=>Math.ceil(s.length/4);
+let history=[];
+function enforce(){while(history.length>1&&history.reduce((n,m)=>n+est(m.content),0)>BUDGET)history.shift();
+ const n=history.reduce((n,m)=>n+est(m.content),0);bar.style.width=Math.min(100,n/BUDGET*100)+"%";tk.textContent=`${n} / ${BUDGET} tokens (estimate)`}
+const $=id=>document.getElementById(id),[log,q,send,tech,temp,tv,bar,tk,pv,rv]=["log","q","send","tech","temp","tv","bar","tk","pv","rv"].map($);
+temp.oninput=()=>tv.textContent=temp.value;
+const add=(c,t)=>{const d=document.createElement("div");d.className="m "+c;d.textContent=t;log.appendChild(d);log.scrollTop=1e9;return d};
+async function ask(question){
+ if(!question.trim())return;
+ add("u",question);q.value="";
+ const hits=retrieve(question), notes=hits.map(h=>`[${KB[h.i][0]}] ${KB[h.i][1]}: ${KB[h.i][2]}`);
+ rv.innerHTML=hits.length?hits.map(h=>`<mark>${KB[h.i][0]}</mark> ${KB[h.i][1]} (score ${h.s.toFixed(2)})`).join("<br>"):"No relevant notes found.";
+ const prompt=T[tech.value](question);pv.textContent=prompt;
+ history.push({role:"user",content:prompt});enforce();
+ const out=add("a","Thinking…");
+ const srcLine=hits.length?"Sources: "+hits.map(h=>`${KB[h.i][0]} · ${KB[h.i][1]}`).join(", "):"";
+ try{
+  const r=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:history,context:notes.join("\n\n"),temperature:+temp.value})});
+  const d=await r.json();if(!r.ok)throw new Error(d.error);
+  out.textContent=d.reply+(srcLine?"\n\n"+srcLine:"");history.push({role:"assistant",content:d.reply});enforce();
+ }catch(e){
+  history.pop();enforce();
+  out.textContent=(hits.length?"Live AI is unavailable ("+e.message+"). Here are the best matching notes:\n\n"+hits.map(h=>`${KB[h.i][0]} · ${KB[h.i][1]}\n${KB[h.i][2]}`).join("\n\n"):"I couldn't find anything about that in the course notes. Try words like RAG, tokens, LoRA or bias.");
+ }
+}
+send.onclick=()=>ask(q.value);q.onkeydown=e=>{if(e.key==="Enter")ask(q.value)};
+document.querySelectorAll("[data-q]").forEach(a=>a.onclick=e=>{e.preventDefault();ask(a.dataset.q)});
+</script>
+</body>
+</html>
